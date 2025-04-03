@@ -14,7 +14,7 @@ app.use(express.json());
 app.use('/api', itemRoutes);
 app.get('/items', async (req, res) => {
     try {
-      const items = await Prisma.item.findMany();
+      const items = await prisma.item.findMany();
       res.json(items);
     } catch (error) {
       console.error("Database error:", error);
