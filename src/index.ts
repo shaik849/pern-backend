@@ -11,6 +11,13 @@ app.use(cors({
   }));
 app.use(express.json());
 app.use('/api', itemRoutes);
+app.get("/", (req: Request, res: Response): any => {
+    return res.status(200).json({
+      status: true,
+      message: "Hello World!",
+    });
+  });
+
 
 // 404 Handler for unmatched routes
 app.use((req: Request, res: Response, next: NextFunction) => {
