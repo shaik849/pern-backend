@@ -2,26 +2,21 @@ import express, { Request, Response, NextFunction, Application } from 'express';
 import itemRoutes from './routes/itemRoutes';
 import { itemModel } from './models/itemModel';
 import cors from 'cors'
-import { PrismaClient } from '@prisma/client';
 
 const app: Application = express();
 const port = process.env.PORT || 3000;
-const prisma = new PrismaClient();
+
 app.use(cors({
     origin: '*' // Allows all origins
   }));
 app.use(express.json());
 app.use('/api', itemRoutes);
-app.get('/', async (req, res) => {
-    try {
-      const items = await prisma.item.findMany();
-      res.json(items);
-    } catch (error) {
-      console.error("Database error:", error);
-      res.status(500).json({ error: "Failed to fetch items" });
-    }
+app.get("/", (req: Request, res: Response): any => {
+    return res.status(200).json({
+      status: true,
+      message: "Hello World!",
+    });
   });
-  
 
 
 // 404 Handler for unmatched routes
