@@ -14,13 +14,10 @@ model User {
 }
 
 model Item {
-  id          Int      @id @default(autoincrement()) // Auto-incremented primary key
-  name        String  
-  description String?  
-  content     String?   
-
-  createdAt   DateTime @default(now()) // Automatically set when the record is created
-  updatedAt   DateTime @updatedAt      // Automatically update on any record update
+  name        String
+  description String?
+  content     String?
+  id          Int      @id @default(autoincrement())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
-
-
