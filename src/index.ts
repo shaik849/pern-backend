@@ -12,7 +12,7 @@ app.use(cors({
   }));
 app.use(express.json());
 app.use('/api', itemRoutes);
-app.get('/items', async (req, res) => {
+app.get('/', async (req, res) => {
     try {
       const items = await prisma.item.findMany();
       res.json(items);
