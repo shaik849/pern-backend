@@ -40,7 +40,7 @@ export class ItemController {
 
       res.status(201).json({ success: true, data: item, message: "Item created successfully" });
     } catch (error) {
-      res.status(500).json({ success: false, error: "Failed to create item" });
+      res.status(500).json({ success: false, error: error || "Failed to create item" });
     }
   }
 
