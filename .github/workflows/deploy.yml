@@ -61,7 +61,6 @@ jobs:
               body
             });
             
-
       - name: Fail if BLOCKED
         run: |
           STATUS=$(node -e "console.log(require('./result.json').status)")
