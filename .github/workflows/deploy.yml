@@ -4,12 +4,6 @@ on:
   pull_request:
     types: [opened, synchronize]
 
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: "PR number (optional for manual run)"
-        required: false
-
 permissions:
   contents: read
   pull-requests: write
@@ -23,21 +17,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Get diff for PR (auto) or manual input
       - name: Get PR diff
         run: |
-          if [ -n "${{ github.event.pull_request.number }}" ]; then
-            PR=${{ github.event.pull_request.number }}
-          else
-            PR=${{ github.event.inputs.pr_number }}
-          fi
-
-          echo "Using PR: $PR"
-
           git fetch origin ${{ github.base_ref }}
           git diff origin/${{ github.base_ref }} > diff.txt
 
-      - name: Send diff to AI
+      - name: Send diff to Mock API
         run: |
           DIFF=$(jq -Rs . < diff.txt)
 
@@ -52,20 +37,18 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const raw = fs.readFileSync('result.json', 'utf8');
-
             let result;
+
             try {
-              result = JSON.parse(raw);
+              result = JSON.parse(fs.readFileSync('result.json', 'utf8'));
             } catch {
-              result = { status: "ERROR", summary: raw };
+              result = { status: "ERROR", summary: "Invalid API response" };
             }
 
             const body =
               "🤖 AI Code Review\n\n" +
               "**Status:** " + result.status + "\n\n" +
               "**Summary:**\n" + (result.summary || "N/A") + "\n\n" +
-              "**Changes:**\n" + (result.changes || []).join("\n") + "\n\n" +
               "**Issues:**\n" + (result.issues || []).join("\n") + "\n\n" +
               "**Suggestions:**\n" +
               (result.suggestions || [])
@@ -74,7 +57,7 @@ jobs:
 
             await github.rest.issues.createComment({
               ...context.repo,
-              issue_number: context.issue.number || Number(process.env.PR_NUMBER),
+              issue_number: context.issue.number,
               body
             });
 
