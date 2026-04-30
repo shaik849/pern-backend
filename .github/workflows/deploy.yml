@@ -1,25 +1,90 @@
-name: Deploy to EC2
+name: AI Code Review
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:   # 👈 ADD THIS
+  pull_request:
+    types: [opened, synchronize]
+
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number (optional for manual run)"
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
 
 jobs:
-  deploy:
+  review:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy to EC2 via SSH
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Get diff for PR (auto) or manual input
+      - name: Get PR diff
+        run: |
+          if [ -n "${{ github.event.pull_request.number }}" ]; then
+            PR=${{ github.event.pull_request.number }}
+          else
+            PR=${{ github.event.inputs.pr_number }}
+          fi
+
+          echo "Using PR: $PR"
+
+          git fetch origin ${{ github.base_ref }}
+          git diff origin/${{ github.base_ref }} > diff.txt
+
+      - name: Send diff to AI
+        run: |
+          DIFF=$(jq -Rs . < diff.txt)
+
+          RESPONSE=$(curl -s -X POST http://13.127.98.233/api/review \
+            -H "Content-Type: application/json" \
+            -d "{\"diff\":$DIFF}")
+
+          echo "$RESPONSE" > result.json
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd ~/pern-backend
-            git pull origin main
-            npm install
-            npm run build
-            pm2 restart pern-backend || pm2 start dist/index.js --name pern-backend
+            const fs = require('fs');
+            const raw = fs.readFileSync('result.json', 'utf8');
+
+            let result;
+            try {
+              result = JSON.parse(raw);
+            } catch {
+              result = { status: "ERROR", summary: raw };
+            }
+
+            const body =
+              "🤖 AI Code Review\n\n" +
+              "**Status:** " + result.status + "\n\n" +
+              "**Summary:**\n" + (result.summary || "N/A") + "\n\n" +
+              "**Changes:**\n" + (result.changes || []).join("\n") + "\n\n" +
+              "**Issues:**\n" + (result.issues || []).join("\n") + "\n\n" +
+              "**Suggestions:**\n" +
+              (result.suggestions || [])
+                .map(s => "- " + s.file + ":" + s.line + " → " + s.message)
+                .join("\n");
+
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.issue.number || Number(process.env.PR_NUMBER),
+              body
+            });
+
+      - name: Fail if BLOCKED
+        run: |
+          STATUS=$(node -e "console.log(require('./result.json').status)")
+
+          echo "Status: $STATUS"
+
+          if [ "$STATUS" = "BLOCKED" ]; then
+            echo "❌ PR Blocked by AI"
+            exit 1
+          fi
