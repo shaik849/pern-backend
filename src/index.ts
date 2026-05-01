@@ -13,6 +13,7 @@ app.use(cors({
   }));
 app.use(express.json());
 app.use('/api', itemRoutes);
+//test api
 app.get("/", (req: Request, res: Response): any => {
     return res.status(200).json({
       status: true,
